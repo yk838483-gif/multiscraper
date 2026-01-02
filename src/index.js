@@ -26,57 +26,54 @@ async function imdbToTmdb(imdbId, type) {
     }
 }
 
-// List of all available scrapers
-const scrapersList = [
-    { name: "4KHDHub", module: "./scrapers/4khdhub" },
-    { name: "AnimeKai", module: "./scrapers/animekai" },
-    { name: "Castle", module: "./scrapers/castle" },
-    { name: "CineVibe", module: "./scrapers/cinevibe" },
-    { name: "DahmerMovies", module: "./scrapers/dahmermovies" },
-    { name: "DVDPlay", module: "./scrapers/dvdplay" },
-    { name: "HDHub4u", module: "./scrapers/hdhub4u" },
-    { name: "HDRezka", module: "./scrapers/hdrezka" },
-    { name: "MalluMV", module: "./scrapers/mallumv" },
-    { name: "Mapple", module: "./scrapers/mapple" },
-    { name: "MovieBox", module: "./scrapers/moviebox" },
-    { name: "MoviesMod", module: "./scrapers/moviesmod" },
-    { name: "MyFlixer", module: "./scrapers/myflixer-extractor" },
-    { name: "NetMirror", module: "./scrapers/netmirror" },
-    { name: "ShowBox", module: "./scrapers/showbox" },
-    { name: "StreamFlix", module: "./scrapers/streamflix" },
-    { name: "UHDMovies", module: "./scrapers/uhdmovies" },
-    { name: "Videasy", module: "./scrapers/videasy" },
-    { name: "VidLink", module: "./scrapers/vidlink" },
-    { name: "VidNest", module: "./scrapers/vidnest" },
-    { name: "VidNest-Anime", module: "./scrapers/vidnest-anime" },
-    { name: "VidRock", module: "./scrapers/vidrock" },
-    { name: "VidSrc", module: "./scrapers/vidsrc" },
-    { name: "VixSrc", module: "./scrapers/vixsrc" },
-    { name: "Watch32", module: "./scrapers/watch32" },
-    { name: "XPrime", module: "./scrapers/xprime" },
-    { name: "YFlix", module: "./scrapers/yflix" }
-];
-
-// Import all scrapers
-// Import all scrapers with error handling
-const allScrapers = scrapersList.reduce((acc, s) => {
+// Helper to safely load scrapers and ensure Vercel bundles them
+const allScrapers = [];
+function safeLoad(name, loader) {
     try {
-        const scraperModule = require(s.module);
-        if (typeof scraperModule.getStreams === 'function') {
-            acc.push({
-                name: s.name,
-                getStreams: scraperModule.getStreams
-            });
+        const module = loader();
+        if (module && typeof module.getStreams === 'function') {
+            allScrapers.push({ name, getStreams: module.getStreams });
         } else {
-            console.warn(`[WARNING] Scraper ${s.name} (at ${s.module}) does not export getStreams function. Skipping.`);
+             console.warn(`[WARNING] Scraper ${name} does not export getStreams function. Skipping.`);
         }
     } catch (e) {
-        console.error(`[ERROR] Failed to load scraper ${s.name} (at ${s.module}): ${e.message}`);
+        console.error(`[ERROR] Failed to load scraper ${name}: ${e.message}`);
     }
-    return acc;
-}, []);
+}
 
-console.log(`Loaded ${allScrapers.length} out of ${scrapersList.length} scrapers successfully.`);
+// Static requires to ensure bundler detection
+safeLoad("4KHDHub", () => require("./scrapers/4khdhub"));
+safeLoad("AnimeKai", () => require("./scrapers/animekai"));
+safeLoad("Castle", () => require("./scrapers/castle"));
+safeLoad("CineVibe", () => require("./scrapers/cinevibe"));
+safeLoad("DahmerMovies", () => require("./scrapers/dahmermovies"));
+safeLoad("DVDPlay", () => require("./scrapers/dvdplay"));
+safeLoad("HDHub4u", () => require("./scrapers/hdhub4u"));
+safeLoad("HDRezka", () => require("./scrapers/hdrezka"));
+safeLoad("MalluMV", () => require("./scrapers/mallumv"));
+safeLoad("Mapple", () => require("./scrapers/mapple"));
+safeLoad("MovieBox", () => require("./scrapers/moviebox"));
+safeLoad("MoviesMod", () => require("./scrapers/moviesmod"));
+safeLoad("MyFlixer", () => require("./scrapers/myflixer-extractor"));
+safeLoad("NetMirror", () => require("./scrapers/netmirror"));
+safeLoad("ShowBox", () => require("./scrapers/showbox"));
+safeLoad("StreamFlix", () => require("./scrapers/streamflix"));
+safeLoad("UHDMovies", () => require("./scrapers/uhdmovies"));
+safeLoad("Videasy", () => require("./scrapers/videasy"));
+safeLoad("VidLink", () => require("./scrapers/vidlink"));
+safeLoad("VidNest", () => require("./scrapers/vidnest"));
+safeLoad("VidNest-Anime", () => require("./scrapers/vidnest-anime"));
+safeLoad("VidRock", () => require("./scrapers/vidrock"));
+safeLoad("VidSrc", () => require("./scrapers/vidsrc"));
+safeLoad("VixSrc", () => require("./scrapers/vixsrc"));
+safeLoad("Watch32", () => require("./scrapers/watch32"));
+safeLoad("XPrime", () => require("./scrapers/xprime"));
+safeLoad("YFlix", () => require("./scrapers/yflix"));
+
+// List of available scrapers (derived from loaded ones)
+const scrapersList = allScrapers.map(s => ({ name: s.name }));
+
+console.log(`Loaded ${allScrapers.length} scrapers successfully.`);
 
 // Helper function to parse configuration from URL
 function parseConfig(configString) {
