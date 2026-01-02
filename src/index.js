@@ -58,10 +58,25 @@ const scrapersList = [
 ];
 
 // Import all scrapers
-const allScrapers = scrapersList.map(s => ({
-    name: s.name,
-    getStreams: require(s.module).getStreams
-}));
+// Import all scrapers with error handling
+const allScrapers = scrapersList.reduce((acc, s) => {
+    try {
+        const scraperModule = require(s.module);
+        if (typeof scraperModule.getStreams === 'function') {
+            acc.push({
+                name: s.name,
+                getStreams: scraperModule.getStreams
+            });
+        } else {
+            console.warn(`[WARNING] Scraper ${s.name} (at ${s.module}) does not export getStreams function. Skipping.`);
+        }
+    } catch (e) {
+        console.error(`[ERROR] Failed to load scraper ${s.name} (at ${s.module}): ${e.message}`);
+    }
+    return acc;
+}, []);
+
+console.log(`Loaded ${allScrapers.length} out of ${scrapersList.length} scrapers successfully.`);
 
 // Helper function to parse configuration from URL
 function parseConfig(configString) {
