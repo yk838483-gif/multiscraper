@@ -2,39 +2,42 @@ const fetch = require('node-fetch');
 
 const MAIN_URL = "https://kisskh.id";
 const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
-
-// The secret Google Scripts used to generate unlock tokens
 const VIDEO_KEY_URL = "https://script.google.com/macros/s/AKfycbzn8B31PuDxzaMa9_CQ0VGEDasFqfzI5bXvjaIZH4DM8DNq9q6xj1ALvZNz_JT3jF0suA/exec?id=";
 
-// Disguise our scraper as a real Firefox browser
 const HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0",
     "Accept": "application/json, text/plain, */*",
     "Referer": `${MAIN_URL}/`
 };
 
+// A custom fetch that automatically kills the connection if it takes longer than 5 seconds
+async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Cloudflare Timeout (Anti-Bot Trap)")), timeoutMs);
+    });
+    return Promise.race([fetch(url, options), timeoutPromise]);
+}
+
+async function safeFetchJson(url, options = {}) {
+    const res = await fetchWithTimeout(url, options);
+    const text = await res.text();
+    if (text.trim().startsWith('<')) {
+        throw new Error("Blocked by Cloudflare (Received HTML)");
+    }
+    return JSON.parse(text);
+}
+
 async function getTMDBDetails(tmdbId, mediaType) {
     const endpoint = mediaType === 'tv' ? 'tv' : 'movie';
     const url = `https://api.themoviedb.org/3/${endpoint}/${tmdbId}?api_key=${TMDB_API_KEY}`;
     try {
-        const res = await fetch(url);
+        const res = await fetchWithTimeout(url);
         const data = await res.json();
         const title = mediaType === 'tv' ? data.name : data.title;
-        const year = (mediaType === 'tv' ? data.first_air_date : data.release_date)?.substring(0, 4);
-        return { title, year };
+        return { title };
     } catch (err) {
-        return { title: `TMDB ID ${tmdbId}`, year: null };
+        return { title: `TMDB ID ${tmdbId}` };
     }
-}
-
-// Helper function to safely parse JSON and catch Cloudflare HTML blocks
-async function safeFetchJson(url, options = {}) {
-    const res = await fetch(url, options);
-    const text = await res.text();
-    if (text.trim().startsWith('<')) {
-        throw new Error("Blocked by Cloudflare/Anti-Bot (Received HTML instead of JSON)");
-    }
-    return JSON.parse(text);
 }
 
 async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
@@ -52,10 +55,10 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
             return [];
         }
 
-        // Find the best match (basic title match)
+        // Find the best match
         const match = searchData.find(item => item.title.toLowerCase().includes(mediaInfo.title.toLowerCase()));
         if (!match) {
-            console.log(`[KissKH] No exact title match found.`);
+            console.log(`[KissKH] No exact title match found for ${mediaInfo.title}`);
             return [];
         }
 
@@ -99,7 +102,6 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
 
         const streams = [];
 
-        // Add primary video
         if (videoData.Video) {
             streams.push({
                 name: "KissKH",
@@ -118,7 +120,6 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
             });
         }
 
-        // Add backup ThirdParty video if it exists
         if (videoData.ThirdParty) {
              streams.push({
                 name: "KissKH (Alt)",
@@ -137,7 +138,7 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
             });
         }
 
-        console.log(`[KissKH] Found ${streams.length} streams!`);
+        console.log(`[KissKH] Successfully extracted ${streams.length} streams!`);
         return streams;
 
     } catch (error) {
