@@ -5,7 +5,13 @@ const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
 
 // The secret Google Scripts used to generate unlock tokens
 const VIDEO_KEY_URL = "https://script.google.com/macros/s/AKfycbzn8B31PuDxzaMa9_CQ0VGEDasFqfzI5bXvjaIZH4DM8DNq9q6xj1ALvZNz_JT3jF0suA/exec?id=";
-const SUB_KEY_URL = "https://script.google.com/macros/s/AKfycbyq6hTj0ZhlinYC6xbggtgo166tp6XaDKBCGtnYk8uOfYBUFwwxBui0sGXiu_zIFmA/exec?id=";
+
+// Disguise our scraper as a real Firefox browser
+const HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0",
+    "Accept": "application/json, text/plain, */*",
+    "Referer": `${MAIN_URL}/`
+};
 
 async function getTMDBDetails(tmdbId, mediaType) {
     const endpoint = mediaType === 'tv' ? 'tv' : 'movie';
@@ -21,6 +27,16 @@ async function getTMDBDetails(tmdbId, mediaType) {
     }
 }
 
+// Helper function to safely parse JSON and catch Cloudflare HTML blocks
+async function safeFetchJson(url, options = {}) {
+    const res = await fetch(url, options);
+    const text = await res.text();
+    if (text.trim().startsWith('<')) {
+        throw new Error("Blocked by Cloudflare/Anti-Bot (Received HTML instead of JSON)");
+    }
+    return JSON.parse(text);
+}
+
 async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
     console.log(`[KissKH] Fetching streams for TMDB ID: ${tmdbId}`);
 
@@ -29,10 +45,7 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
         
         // 1. Search KissKH Database
         const searchUrl = `${MAIN_URL}/api/DramaList/Search?q=${encodeURIComponent(mediaInfo.title)}&type=0`;
-        const searchRes = await fetch(searchUrl, {
-            headers: { "Referer": `${MAIN_URL}/` }
-        });
-        const searchData = await searchRes.json();
+        const searchData = await safeFetchJson(searchUrl, { headers: HEADERS });
 
         if (!searchData || searchData.length === 0) {
             console.log(`[KissKH] No search results found for ${mediaInfo.title}`);
@@ -49,18 +62,14 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
         // 2. Get Details to find the correct Episode ID
         const formattedTitle = match.title.replace(/[^a-zA-Z0-9]/g, "-");
         const detailsUrl = `${MAIN_URL}/api/DramaList/Drama/${match.id}?isq=false`;
-        const detailsRes = await fetch(detailsUrl, {
-            headers: { "Referer": `${MAIN_URL}/Drama/${formattedTitle}?id=${match.id}` }
-        });
-        const detailsData = await detailsRes.json();
+        
+        const detailsHeaders = { ...HEADERS, "Referer": `${MAIN_URL}/Drama/${formattedTitle}?id=${match.id}` };
+        const detailsData = await safeFetchJson(detailsUrl, { headers: detailsHeaders });
 
         if (!detailsData || !detailsData.episodes || detailsData.episodes.length === 0) return [];
 
         let targetEpisode = null;
         if (mediaType === 'tv') {
-            // KissKH usually lists episodes absolutely (1, 2, 3) rather than by season. 
-            // For a basic implementation, we try to match the episode number directly.
-            // Note: If a show has multiple seasons on KissKH, they are usually separate entries entirely.
             targetEpisode = detailsData.episodes.find(e => Math.floor(e.number) === parseInt(episodeNum));
         } else {
             targetEpisode = detailsData.episodes[0];
@@ -73,8 +82,7 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
 
         // 3. Generate Video Unlock Token (kkey)
         const keyReqUrl = `${VIDEO_KEY_URL}${targetEpisode.id}&version=2.8.10`;
-        const keyRes = await fetch(keyReqUrl);
-        const keyData = await keyRes.json();
+        const keyData = await safeFetchJson(keyReqUrl, { headers: HEADERS });
         const kkey = keyData.key;
 
         if (!kkey) {
@@ -86,10 +94,8 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
         const videoApiUrl = `${MAIN_URL}/api/DramaList/Episode/${targetEpisode.id}.png?err=false&ts=&time=&kkey=${kkey}`;
         const videoReferer = `${MAIN_URL}/Drama/${formattedTitle}/Episode-${targetEpisode.number}?id=${match.id}&ep=${targetEpisode.id}&page=0&pageSize=100`;
 
-        const videoRes = await fetch(videoApiUrl, {
-            headers: { "Referer": videoReferer }
-        });
-        const videoData = await videoRes.json();
+        const videoHeaders = { ...HEADERS, "Referer": videoReferer };
+        const videoData = await safeFetchJson(videoApiUrl, { headers: videoHeaders });
 
         const streams = [];
 
@@ -104,7 +110,8 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                     proxyHeaders: {
                         request: {
                             "Origin": MAIN_URL,
-                            "Referer": `${MAIN_URL}/`
+                            "Referer": `${MAIN_URL}/`,
+                            "User-Agent": HEADERS["User-Agent"]
                         }
                     }
                 }
@@ -122,7 +129,8 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                     proxyHeaders: {
                         request: {
                             "Origin": MAIN_URL,
-                            "Referer": `${MAIN_URL}/`
+                            "Referer": `${MAIN_URL}/`,
+                            "User-Agent": HEADERS["User-Agent"]
                         }
                     }
                 }
