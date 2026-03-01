@@ -1,12 +1,17 @@
 const fetch = require('node-fetch');
 
-const MAIN_URL = "https://kisskh.id";
+// THE SECRET SIDE DOOR: Using the .ovh mirror instead of .id
+const MAIN_URL = "https://kisskh.ovh";
 const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
 const VIDEO_KEY_URL = "https://script.google.com/macros/s/AKfycbzn8B31PuDxzaMa9_CQ0VGEDasFqfzI5bXvjaIZH4DM8DNq9q6xj1ALvZNz_JT3jF0suA/exec?id=";
 
-// The Ultimate Disguise: Using got-scraping to spoof Chrome's TLS fingerprint
+const HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0",
+    "Accept": "application/json, text/plain, */*",
+    "Referer": `${MAIN_URL}/`
+};
+
 async function safeFetchJson(url, refererUrl = `${MAIN_URL}/`) {
-    // We use a dynamic import because got-scraping is an ESM library
     const { gotScraping } = await import('got-scraping');
     
     try {
@@ -16,7 +21,7 @@ async function safeFetchJson(url, refererUrl = `${MAIN_URL}/`) {
                 "Referer": refererUrl
             },
             responseType: 'text',
-            timeout: { request: 8000 } // 8 second killswitch
+            timeout: { request: 8000 } 
         });
 
         const text = res.body;
@@ -29,7 +34,6 @@ async function safeFetchJson(url, refererUrl = `${MAIN_URL}/`) {
     }
 }
 
-// We can still use normal fetch for TMDB because they don't block us
 async function getTMDBDetails(tmdbId, mediaType) {
     const endpoint = mediaType === 'tv' ? 'tv' : 'movie';
     const url = `https://api.themoviedb.org/3/${endpoint}/${tmdbId}?api_key=${TMDB_API_KEY}`;
@@ -49,7 +53,7 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
     try {
         const mediaInfo = await getTMDBDetails(tmdbId, mediaType);
         
-        // 1. Search KissKH Database (Using Spoofer)
+        // 1. Search KissKH Database
         const searchUrl = `${MAIN_URL}/api/DramaList/Search?q=${encodeURIComponent(mediaInfo.title)}&type=0`;
         const searchData = await safeFetchJson(searchUrl);
 
@@ -103,7 +107,6 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
 
         const streams = [];
 
-        // Note: KissKH often uses an origin header for video playback
         if (videoData.Video) {
             streams.push({
                 name: "KissKH",
