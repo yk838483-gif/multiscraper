@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
 
-// THE SECRET SIDE DOOR: Using the .ovh mirror instead of .id
+// THE HOLY GRAIL DOMAIN: .co is currently bypassing the Cloudflare JS Challenge
 const MAIN_URL = "https://kisskh.co";
 const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
 const VIDEO_KEY_URL = "https://script.google.com/macros/s/AKfycbzn8B31PuDxzaMa9_CQ0VGEDasFqfzI5bXvjaIZH4DM8DNq9q6xj1ALvZNz_JT3jF0suA/exec?id=";
