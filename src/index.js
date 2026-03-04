@@ -46,7 +46,6 @@ safeLoad("4KHDHub", () => require("./scrapers/4khdhub"));
 safeLoad("AnimeKai", () => require("./scrapers/animekai"));
 safeLoad("Castle", () => require("./scrapers/castle"));
 safeLoad("CineVibe", () => require("./scrapers/cinevibe"));
-safeLoad("Consumet", () => require("./scrapers/consumet")); // <-- ADD THIS LINE HERE
 safeLoad("DahmerMovies", () => require("./scrapers/dahmermovies"));
 safeLoad("DVDPlay", () => require("./scrapers/dvdplay"));
 safeLoad("HDHub4u", () => require("./scrapers/hdhub4u"));
