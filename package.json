@@ -7,18 +7,24 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/index.js"
   },
-  "keywords": ["stremio", "addon", "nuvio", "multiscraper"],
+  "keywords": [
+    "stremio",
+    "addon",
+    "nuvio",
+    "multiscraper"
+  ],
   "author": "",
   "license": "GPL-3.0",
   "type": "commonjs",
   "dependencies": {
+    "@consumet/extensions": "^1.8.8",
     "axios": "^1.13.2",
     "cheerio": "^1.0.0-rc.12",
     "crypto-js": "^4.2.0",
     "express": "^5.2.1",
+    "got-scraping": "^4.0.x",
     "node-fetch": "^2.7.0",
     "stremio-addon-sdk": "^1.6.10",
-    "ws": "^8.18.3",
-    "got-scraping": "^4.0.x"
+    "ws": "^8.18.3"
   }
 }
