@@ -16,7 +16,6 @@ async function getTMDBTitle(tmdbId, mediaType) {
 
 async function scrapeProvider(provider, title, episodeNum, providerName) {
     try {
-        console.log(`[Consumet | ${providerName}] Searching: ${title}`);
         const search = await provider.search(title);
         
         if (!search.results || search.results.length === 0) return [];
@@ -32,7 +31,6 @@ async function scrapeProvider(provider, title, episodeNum, providerName) {
         const targetEp = info.episodes.find(e => parseInt(e.number) === parseInt(episodeNum));
         if (!targetEp) return [];
 
-        console.log(`[Consumet | ${providerName}] Extracting streams for Episode ${episodeNum}...`);
         const sources = await provider.fetchEpisodeSources(targetEp.id);
         
         const streams = [];
@@ -54,32 +52,38 @@ async function scrapeProvider(provider, title, episodeNum, providerName) {
 }
 
 async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
-    console.log(`[Consumet] Booting up dynamic extensions...`);
-    
     try {
         const ext = await import('@consumet/extensions');
-        
-        // Grab them directly from the top level based on our debug log!
         const ANIME = ext.ANIME || ext.default.ANIME;
         const MOVIES = ext.MOVIES || ext.default.MOVIES;
 
-        const gogoanime = new ANIME.Gogoanime();
-        const dramacool = new MOVIES.Dramacool();
+        // Auto-detect the exact spelling/capitalization
+        const gogoKey = Object.keys(ANIME).find(k => k.toLowerCase().includes('gogo'));
+        const dramaKey = Object.keys(MOVIES).find(k => k.toLowerCase().includes('drama'));
+
+        if (!gogoKey || !dramaKey) {
+            console.log("[Debug] ANIME:", Object.keys(ANIME));
+            console.log("[Debug] MOVIES:", Object.keys(MOVIES));
+            throw new Error("Could not find providers in the library.");
+        }
+
+        console.log(`[Consumet] Auto-detected classes: ${gogoKey} & ${dramaKey}`);
+
+        // Initialize with the dynamically found names
+        const gogoanime = new ANIME[gogoKey]();
+        const dramacool = new MOVIES[dramaKey]();
 
         const title = await getTMDBTitle(tmdbId, mediaType);
         if (!title) return [];
 
-        console.log(`[Consumet] Firing up scrapers for: ${title}`);
+        console.log(`[Consumet] Searching: ${title}`);
 
         const [animeStreams, dramaStreams] = await Promise.all([
             scrapeProvider(gogoanime, title, episodeNum, "GogoAnime"),
             scrapeProvider(dramacool, title, episodeNum, "DramaCool")
         ]);
 
-        const allStreams = [...animeStreams, ...dramaStreams];
-        console.log(`[Consumet] Total streams extracted: ${allStreams.length}`);
-        
-        return allStreams;
+        return [...animeStreams, ...dramaStreams];
         
     } catch (err) {
         console.error(`[Consumet] Master Error: ${err.message}`);
@@ -87,6 +91,4 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
     }
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getStreams };
-}
+module.exports = { getStreams };
