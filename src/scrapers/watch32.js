@@ -39,7 +39,10 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
             console.log(`[Vegamovies] Trying domain: ${domain} for "${title}"`);
             
             try {
-                const searchUrl = `${domain}/?s=${encodeURIComponent(title)}`;
+                // Fix: WordPress search usually prefers + instead of %20
+                const searchFormat = title.replace(/\s+/g, '+');
+                const searchUrl = `${domain}/?s=${searchFormat}`;
+                
                 const response = await gotScraping({
                     url: searchUrl,
                     responseType: 'text',
@@ -55,27 +58,27 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                 }
 
                 const streams = [];
-                const uniqueLinks = new Set(); // To prevent duplicate streams
+                const uniqueLinks = new Set(); 
 
-                // ☢️ THE NUKE: Scan every single link on the entire webpage
                 $('a').each((i, element) => {
                     const linkText = $(element).text().trim();
                     const linkTitleAttr = $(element).attr('title') || "";
-                    const postLink = $(element).attr('href');
+                    const imgAlt = $(element).find('img').attr('alt') || ""; // Grab image names!
+                    const postLink = $(element).attr('href') || "";
                     
-                    // If the text or the hover-title contains our movie name, grab it!
-                    if (postLink && (linkText.toLowerCase().includes(title.toLowerCase()) || linkTitleAttr.toLowerCase().includes(title.toLowerCase()))) {
+                    // Combine all possible text sources into one string to check
+                    const allText = `${linkText} ${linkTitleAttr} ${imgAlt} ${postLink}`.toLowerCase();
+                    
+                    if (postLink && allText.includes(title.toLowerCase()) && postLink.includes(domain)) {
                         
-                        // Make sure we aren't grabbing generic tag links or duplicates
-                        if (!uniqueLinks.has(postLink) && postLink.includes(domain)) {
+                        if (!uniqueLinks.has(postLink)) {
                             uniqueLinks.add(postLink);
                             
-                            // Use the text it found, or fallback to the movie title
-                            const displayTitle = linkText.length > 3 ? linkText : linkTitleAttr || title;
+                            const displayTitle = linkText.length > 3 ? linkText : imgAlt || title;
 
                             streams.push({
                                 name: "Vegamovies",
-                                title: `[Web View]\n${displayTitle}`,
+                                title: `[Web View]\n${displayTitle.trim()}`,
                                 url: postLink,
                                 behaviorHints: { notWebReady: false } 
                             });
@@ -87,7 +90,7 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                     console.log(`[Vegamovies] BINGO! Found ${streams.length} matches on ${domain}.`);
                     return streams; 
                 } else {
-                    console.log(`[Vegamovies] 0 matches on ${domain}. Title: "${$('title').text()}"`);
+                    console.log(`[Vegamovies] 0 matches on ${domain}. (Maybe movie not on site?)`);
                     continue; 
                 }
 
