@@ -39,7 +39,6 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
             console.log(`[Vegamovies] Trying domain: ${domain} for "${title}"`);
             
             try {
-                // Fix: WordPress search usually prefers + instead of %20
                 const searchFormat = title.replace(/\s+/g, '+');
                 const searchUrl = `${domain}/?s=${searchFormat}`;
                 
@@ -63,15 +62,24 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                 $('a').each((i, element) => {
                     const linkText = $(element).text().trim();
                     const linkTitleAttr = $(element).attr('title') || "";
-                    const imgAlt = $(element).find('img').attr('alt') || ""; // Grab image names!
-                    const postLink = $(element).attr('href') || "";
+                    const imgAlt = $(element).find('img').attr('alt') || ""; 
+                    let postLink = $(element).attr('href');
                     
-                    // Combine all possible text sources into one string to check
+                    // Skip empty or javascript links
+                    if (!postLink || postLink === '#' || postLink.startsWith('javascript:')) return;
+
+                    // FIX: Convert relative links (like /movie-name/) to absolute links
+                    if (postLink.startsWith('/')) {
+                        postLink = domain + postLink;
+                    }
+                    
                     const allText = `${linkText} ${linkTitleAttr} ${imgAlt} ${postLink}`.toLowerCase();
                     
-                    if (postLink && allText.includes(title.toLowerCase()) && postLink.includes(domain)) {
+                    // FIX: Check if it's an internal link and contains the title
+                    if (postLink.startsWith(domain) && allText.includes(title.toLowerCase())) {
                         
-                        if (!uniqueLinks.has(postLink)) {
+                        // Ignore generic WordPress author/page/tag links
+                        if (!uniqueLinks.has(postLink) && !postLink.includes('/page/') && !postLink.includes('/author/')) {
                             uniqueLinks.add(postLink);
                             
                             const displayTitle = linkText.length > 3 ? linkText : imgAlt || title;
