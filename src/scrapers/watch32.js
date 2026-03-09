@@ -3,7 +3,6 @@ const cheerio = require('cheerio');
 
 const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
 
-// Updated with the latest active domains from global web traffic data
 const DOMAINS = [
     "https://vegamovies.hot",
     "https://vegamovies.uz",
@@ -38,14 +37,29 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
             console.log(`[Vegamovies] Trying domain: ${domain} for "${title}"`);
             
             try {
-                // THE FIX: Use SEO-friendly search routing to bypass the blocked /?s= parameter
                 const searchFormat = title.replace(/\s+/g, '+');
-                const searchUrl = `${domain}/search/${searchFormat}/`;
+                const searchUrl = `${domain}/?s=${searchFormat}`;
                 
+                // 🕵️ STEALTH MODE: Fake a real Windows desktop browser perfectly
                 const response = await gotScraping({
                     url: searchUrl,
                     responseType: 'text',
-                    timeout: { request: 8000 }
+                    timeout: { request: 10000 },
+                    headerGeneratorOptions: {
+                        browsers: [{name: 'chrome', minVersion: 110, maxVersion: 120}],
+                        devices: ['desktop'],
+                        locales: ['en-US', 'en']
+                    },
+                    headers: {
+                        'Referer': `${domain}/`,
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Upgrade-Insecure-Requests': '1',
+                        'Sec-Fetch-Dest': 'document',
+                        'Sec-Fetch-Mode': 'navigate',
+                        'Sec-Fetch-Site': 'same-origin',
+                        'Sec-Fetch-User': '?1'
+                    }
                 });
 
                 const $ = cheerio.load(response.body);
@@ -56,9 +70,8 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                     continue; 
                 }
 
-                // If the title doesn't include our movie or the word "search", it likely redirected to the homepage again
                 if (!pageTitle.includes('search') && !pageTitle.includes(title.toLowerCase())) {
-                    console.log(`[Vegamovies] Search blocked on ${domain} (Redirected to Homepage). Moving to next...`);
+                    console.log(`[Vegamovies] Search blocked on ${domain} (Datacenter IP rejected). Moving to next...`);
                     continue;
                 }
 
@@ -83,7 +96,6 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
                         
                         if (!uniqueLinks.has(postLink) && !postLink.includes('/page/') && !postLink.includes('/author/')) {
                             uniqueLinks.add(postLink);
-                            
                             const displayTitle = linkText.length > 3 ? linkText : imgAlt || title;
 
                             streams.push({
