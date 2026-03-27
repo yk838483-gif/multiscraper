@@ -9,9 +9,11 @@ const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const ANILIST_URL = 'https://graphql.anilist.co';
 
 const HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Connection': 'keep-alive',
-    'Accept': 'application/json, text/plain, */*'
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br'
 };
 
 const API = 'https://enc-dec.app/api';
@@ -35,7 +37,8 @@ async function request(url, options = {}) {
         method: options.method || 'GET',
         headers: mergedHeaders,
         body: options.body,
-        timeout: options.timeout || 10000
+        timeout: options.timeout || 15000,
+        compress: true
     });
     if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -81,8 +84,12 @@ async function decryptMegaMedia(embedUrl, rid) {
                 'Referer': embedUrl,
                 'Origin': origin,
                 'Accept': 'application/json, text/plain, */*',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-origin',
+                'DNT': '1',
+                'Sec-GPC': '1'
             } 
         });
         const mediaResp = await res.json();
