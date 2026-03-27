@@ -71,9 +71,20 @@ async function decryptKai(text) {
 async function decryptMegaMedia(embedUrl, rid) {
     try {
         const mediaUrl = embedUrl.replace('/e/', '/media/');
+        const urlObj = new URL(embedUrl);
+        const origin = urlObj.origin;
+
         log(`Fetching media metadata: ${mediaUrl}`, rid);
         
-        const res = await request(mediaUrl, { headers: { 'Referer': embedUrl } });
+        const res = await request(mediaUrl, { 
+            headers: { 
+                'Referer': embedUrl,
+                'Origin': origin,
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'X-Requested-With': 'XMLHttpRequest'
+            } 
+        });
         const mediaResp = await res.json();
         
         if (!mediaResp || !mediaResp.result) {
