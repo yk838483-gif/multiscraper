@@ -77,6 +77,17 @@ async function decryptMegaMedia(embedUrl, rid) {
         const urlObj = new URL(embedUrl);
         const origin = urlObj.origin;
 
+        log(`Priming session: ${embedUrl}`, rid);
+        // First fetch the embed page to get any session cookies
+        await request(embedUrl, { 
+            headers: { 
+                'Referer': 'https://animekai.to/',
+                'Sec-Fetch-Dest': 'iframe',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'cross-site'
+            } 
+        });
+
         log(`Fetching media metadata: ${mediaUrl}`, rid);
         
         const res = await request(mediaUrl, { 
@@ -87,9 +98,7 @@ async function decryptMegaMedia(embedUrl, rid) {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Sec-Fetch-Dest': 'empty',
                 'Sec-Fetch-Mode': 'cors',
-                'Sec-Fetch-Site': 'same-origin',
-                'DNT': '1',
-                'Sec-GPC': '1'
+                'Sec-Fetch-Site': 'same-origin'
             } 
         });
         const mediaResp = await res.json();
